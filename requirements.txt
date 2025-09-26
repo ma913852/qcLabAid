@@ -1,0 +1,19 @@
+# Lab Capacity Model - Requirements
+# Core Dash and visualization
+dash==2.14.2
+dash-bootstrap-components==1.5.0
+plotly==5.17.0
+
+# Data processing
+pandas==2.1.4
+numpy==1.24.3
+
+# Database connectivity (SQL Server)
+pyodbc==5.0.1
+sqlalchemy==2.0.23
+
+# Additional utilities
+python-dotenv==1.0.0
+
+# For development
+gunicorn==21.2.0  # Production server

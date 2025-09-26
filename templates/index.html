@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Capacity Model</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="#">Laboratory Capacity Model</a>
+            <div class="navbar-nav">
+                <a class="nav-link active" href="#" onclick="showTab('dashboard')">Dashboard</a>
+                <a class="nav-link" href="#" onclick="showTab('schedule')">Schedule</a>
+                <a class="nav-link" href="#" onclick="showTab('resources')">Resources</a>
+                <a class="nav-link" href="#" onclick="showTab('demand')">Demand</a>
+                <a class="nav-link" href="#" onclick="showTab('optimization')">Optimization</a>
+                <a class="nav-link" href="#" onclick="showTab('admin')">Admin</a>
+                <a class="nav-link" href="#" onclick="showTab('reports')">Reports</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Dashboard Tab -->
+        <div id="dashboard-tab" class="tab-content">
+            <!-- KPI Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h4 class="card-title text-primary" id="personnel-kpi">0/0</h4>
+                            <p class="card-text">Personnel Available</p>
+                            <small class="text-muted" id="personnel-util">Avg Utilization: 0%</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h4 class="card-title text-success" id="instruments-kpi">0/0</h4>
+                            <p class="card-text">Instruments Available</p>
+                            <small class="text-muted" id="instruments-util">Avg Utilization: 0%</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h4 class="card-title text-warning" id="projects-kpi">0</h4>
+                            <p class="card-text">Active Projects</p>
+                            <small class="text-muted" id="projects-total">Total Projects: 0</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h4 class="card-title text-info" id="capacity-kpi">0%</h4>
+                            <p class="card-text">Overall Capacity</p>
+                            <small class="text-muted">Lab-wide utilization</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Personnel Utilization</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="personnelChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Instrument Status</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="instrumentChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Capacity Timeline -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">14-Day Capacity Forecast</h5>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <input type="radio" class="btn-check" name="timelineRange" id="timeline7d" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="timeline7d">7D</label>
+                                <input type="radio" class="btn-check" name="timelineRange" id="timeline14d" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="timeline14d">14D</label>
+                                <input type="radio" class="btn-check" name="timelineRange" id="timeline30d" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="timeline30d">30D</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container-timeline">
+                                <canvas id="timelineChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule Tab -->
+        <div id="schedule-tab" class="tab-content" style="display: none;">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Resource Schedule</h5>
+                            <div>
+                                <input type="date" class="form-control d-inline-block" style="width: auto;" id="schedule-date" onchange="updateSchedule()">
+                                <button class="btn btn-primary btn-sm ms-2" onclick="addTask()">Add Task</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="gantt-chart" style="height: 400px; overflow-y: auto;">
+                                <!-- Gantt chart will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Today's Assignments</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped" id="assignments-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Personnel</th>
+                                            <th>Instrument</th>
+                                            <th>Task</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resources Tab -->
+        <div id="resources-tab" class="tab-content" style="display: none;">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Personnel</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped" id="personnel-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Role</th>
+                                            <th>Department</th>
+                                            <th>Status</th>
+                                            <th>Utilization %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Instruments</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped" id="instruments-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Location</th>
+                                            <th>Status</th>
+                                            <th>Utilization %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Demand Tab -->
+        <div id="demand-tab" class="tab-content" style="display: none;">
+            <!-- Demand Forecasting Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Demand Forecasting</h5>
+                            <div>
+                                <button class="btn btn-primary btn-sm me-2" onclick="addDemandForecast()">
+                                    <i class="fas fa-plus"></i> Add Forecast
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="importDemand()">
+                                    <i class="fas fa-upload"></i> Import Data
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container-demand">
+                                <canvas id="demandChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Demand Planning Controls -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Quick Demand Entry</h6>
+                        </div>
+                        <div class="card-body">
+                            <form id="demandForm" class="demand-form">
+                                <!-- Project/Study Name -->
+                                <div class="mb-3">
+                                    <label class="form-label">Project/Study Name</label>
+                                    <input type="text" class="form-control" id="demandProjectName" placeholder="e.g., Q4 Validation - 1">
+                                </div>
+
+                                <!-- Client Selection -->
+                                <div class="mb-3">
+                                    <label class="form-label">Client</label>
+                                    <select class="form-select" id="demandClient">
+                                        <option value="">Select a client...</option>
+                                        <option value="PharmaCorp">PharmaCorp</option>
+                                        <option value="BioTech Inc">BioTech Inc</option>
+                                        <option value="ChemLabs">ChemLabs</option>
+                                        <option value="Research Corp">Research Corp</option>
+                                        <option value="Analytics Ltd">Analytics Ltd</option>
+                                    </select>
+                                </div>
+
+                                <!-- Method Selection -->
+                                <div class="mb-3">
+                                    <label class="form-label">Method/Assay</label>
+                                    <select class="form-select" id="demandMethod" onchange="updateMethodDetails()">
+                                        <option value="">Select a method...</option>
+                                        <option value="METABOLITE-PANEL">Metabolite Panel</option>
+                                        <option value="LIPID-PANEL">Lipid Panel</option>
+                                        <option value="PURITY-ANALYSIS">Purity Analysis</option>
+                                        <option value="STABILITY-STUDY">Stability Study</option>
+                                        <option value="IMPURITY-PROFILE">Impurity Profile</option>
+                                        <option value="RESIDUAL-SOLVENTS">Residual Solvents</option>
+                                        <option value="ELEMENTAL-ANALYSIS">Elemental Analysis</option>
+                                        <option value="BIOANALYTICAL-ASSAY">Bioanalytical Assay</option>
+                                        <option value="PHARMACOKINETICS">Pharmacokinetics</option>
+                                        <option value="TOXICOKINETICS">Toxicokinetics</option>
+                                        <option value="BIOMARKER-ANALYSIS">Biomarker Analysis</option>
+                                        <option value="PROTEOMICS">Proteomics</option>
+                                        <option value="GENOMICS">Genomics</option>
+                                    </select>
+                                </div>
+
+                                <!-- Method Details Display -->
+                                <div class="mb-3" id="methodDetails" style="display: none;">
+                                    <div class="alert alert-info">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <strong>Required Instruments:</strong><br>
+                                                <span id="methodInstruments">-</span><br>
+                                                <strong>Lead Time:</strong> <span id="methodLeadTime">-</span> days
+                                            </div>
+                                            <div class="col-md-4">
+                                                <strong>Batch Capacity:</strong> <span id="methodBatchSize">-</span> samples<br>
+                                                <strong>Time per Batch:</strong> <span id="methodTimePerBatch">-</span> hours
+                                            </div>
+                                            <div class="col-md-4">
+                                                <strong>Qualified Personnel:</strong><br>
+                                                <small><span id="methodPersonnel">-</span></small>
+                                            </div>
+                                        </div>
+                                        <hr>
+                                        <div class="text-muted small">
+                                            <span id="methodDescription">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sample Breakdown Display -->
+                                <div class="mb-3" id="sampleBreakdown" style="display: none;">
+                                    <div class="alert alert-warning">
+                                        <h6 class="alert-heading">Sample Breakdown by Assay</h6>
+                                        <div class="row" id="instrumentBreakdown">
+                                            <!-- Will be populated by JavaScript based on method assays -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Number of Samples -->
+                                <div class="mb-3">
+                                    <label class="form-label">Number of Samples</label>
+                                    <input type="number" class="form-control" id="demandSampleCount" min="1" max="1000" placeholder="e.g., 24" onchange="updateSampleCalculations()">
+                                    <div class="form-text">Total number of samples for this method/assay</div>
+                                </div>
+
+                                <!-- Total Samples Display -->
+                                <div class="mb-3">
+                                    <div class="alert alert-light">
+                                        <div class="row text-center">
+                                            <div class="col-md-4">
+                                                <strong>Total Samples:</strong> <span id="demandTotalSamples" class="text-primary">0</span>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <strong>Estimated Time:</strong> <span id="demandEstimatedTime" class="text-info">0 hours</span>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <strong>Priority Level:</strong> <span id="demandCalculatedPriority" class="text-warning">Low</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Date Selection -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Required By Date</label>
+                                            <input type="date" class="form-control" id="demandRequiredByDate" onchange="calculateStartDate()">
+                                            <div class="form-text">When results are needed</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Calculated Start Date</label>
+                                            <input type="date" class="form-control" id="demandStartDate" readonly style="background-color: #f8f9fa;">
+                                            <div class="form-text">Based on method lead time</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Priority and Status -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Priority</label>
+                                            <select class="form-select" id="demandPriority">
+                                                <option value="critical">Critical</option>
+                                                <option value="high">High</option>
+                                                <option value="medium" selected>Medium</option>
+                                                <option value="low">Low</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Status</label>
+                                            <select class="form-select" id="demandStatus">
+                                                <option value="pending" selected>Pending</option>
+                                                <option value="approved">Approved</option>
+                                                <option value="scheduled">Scheduled</option>
+                                                <option value="in-progress">In Progress</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Special Requirements -->
+                                <div class="mb-3">
+                                    <label class="form-label">Special Requirements</label>
+                                    <textarea class="form-control" id="demandRequirements" rows="2" placeholder="e.g., Temperature controlled, specific analyst required, rush order"></textarea>
+                                </div>
+
+                                <!-- Submit Button -->
+                                <button type="button" class="btn btn-primary w-100" onclick="submitDemand()">
+                                    <i class="fas fa-plus me-2"></i>Add Sample Request
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Demand Queue</h6>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <input type="radio" class="btn-check" name="demandView" id="demandAll" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="demandAll">All</label>
+                                <input type="radio" class="btn-check" name="demandView" id="demandPending" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="demandPending">Pending</label>
+                                <input type="radio" class="btn-check" name="demandView" id="demandScheduled" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="demandScheduled">Scheduled</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="demand-queue-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Project/Study</th>
+                                            <th>Method/Assay</th>
+                                            <th>Samples</th>
+                                            <th>Sample Breakdown</th>
+                                            <th>Start Date</th>
+                                            <th>Priority</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Batch Planning -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Sample Batch Planning Overview</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-3">
+                                    <div class="border-start-primary border-start p-3">
+                                        <h4 class="text-primary mb-1" id="total-samples">0</h4>
+                                        <small class="text-muted">Total Samples Queued</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border-start-success border-start p-3">
+                                        <h4 class="text-success mb-1" id="total-batches">0</h4>
+                                        <small class="text-muted">Batches Required</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border-start-warning border-start p-3">
+                                        <h4 class="text-warning mb-1" id="avg-batch-size">0</h4>
+                                        <small class="text-muted">Avg Batch Size</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border-start-danger border-start p-3">
+                                        <h4 class="text-danger mb-1" id="total-hours">0</h4>
+                                        <small class="text-muted">Total Hours Needed</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Demand Analytics -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Demand by Method/Assay</h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="demandByInstrumentChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Sample Throughput vs Capacity</h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="demandCapacityGapChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Optimization Tab -->
+        <div id="optimization-tab" class="tab-content" style="display: none;">
+            <!-- Capacity Overview -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Method Capacity Overview</h5>
+                            <button class="btn btn-primary btn-sm" onclick="optimizeSchedule()">
+                                <i class="fas fa-magic"></i> Optimize Schedule
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped" id="capacity-overview-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Method</th>
+                                            <th>Daily Capacity</th>
+                                            <th>Weekly Capacity</th>
+                                            <th>Current Utilization</th>
+                                            <th>Available Capacity</th>
+                                            <th>Qualified Operators</th>
+                                            <th>Available Instruments</th>
+                                            <th>Bottleneck</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Optimal Schedule -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Optimized Schedule</h5>
+                            <div>
+                                <span class="badge bg-success me-2">Efficiency: <span id="scheduleEfficiency">-</span>%</span>
+                                <button class="btn btn-outline-primary btn-sm" onclick="exportSchedule()">
+                                    <i class="fas fa-download"></i> Export
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="optimized-schedule-gantt" style="height: 400px; overflow-y: auto;">
+                                <!-- Optimized Gantt chart will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Optimization Insights -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Identified Bottlenecks</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul id="bottlenecksList" class="list-unstyled">
+                                <!-- Bottlenecks will be populated by JavaScript -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Optimization Recommendations</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul id="recommendationsList" class="list-unstyled">
+                                <!-- Recommendations will be populated by JavaScript -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Tab -->
+        <div id="admin-tab" class="tab-content" style="display: none;">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h4 class="mb-3"><i class="fas fa-user-shield text-primary"></i> Administration Panel</h4>
+                    <p class="text-muted">Manage methods, instruments, operators, and system configuration</p>
+                </div>
+            </div>
+
+            <!-- Methods Management -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-flask text-primary"></i> Methods Management</h5>
+                            <button class="btn btn-primary btn-sm" onclick="addMethod()">
+                                <i class="fas fa-plus"></i> Add Method
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="methods-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Method ID</th>
+                                            <th>Name</th>
+                                            <th>Category</th>
+                                            <th>Lead Time (Days)</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Method x Instrument Matrix -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-cogs text-success"></i> Method x Instrument Compatibility Matrix</h5>
+                            <button class="btn btn-success btn-sm" onclick="addMethodInstrument()">
+                                <i class="fas fa-plus"></i> Add Compatibility
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="method-instrument-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Method Name</th>
+                                            <th>Instrument Category</th>
+                                            <th>Instrument Name</th>
+                                            <th>Compatible</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operator Skills Matrix -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-users text-info"></i> Operator Skills Matrix</h5>
+                            <button class="btn btn-info btn-sm" onclick="addOperatorSkill()">
+                                <i class="fas fa-plus"></i> Add Skill
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="operator-skills-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Operator</th>
+                                            <th>Method</th>
+                                            <th>Proficiency</th>
+                                            <th>Certification Date</th>
+                                            <th>Last Training</th>
+                                            <th>Can Train Others</th>
+                                            <th>Max Batch Size</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operator Holidays -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-calendar-times text-warning"></i> Operator Holidays & Leave</h5>
+                            <button class="btn btn-warning btn-sm" onclick="addHoliday()">
+                                <i class="fas fa-plus"></i> Add Holiday
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="holidays-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Operator</th>
+                                            <th>Type</th>
+                                            <th>Start Date</th>
+                                            <th>End Date</th>
+                                            <th>Status</th>
+                                            <th>Requested Date</th>
+                                            <th>Approved By</th>
+                                            <th>Notes</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instruments Management -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-microscope text-secondary"></i> Instruments Management</h5>
+                            <button class="btn btn-secondary btn-sm" onclick="addInstrument()">
+                                <i class="fas fa-plus"></i> Add Instrument
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="instruments-admin-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Instrument ID</th>
+                                            <th>Name</th>
+                                            <th>Category</th>
+                                            <th>Location</th>
+                                            <th>Status</th>
+                                            <th>Max Batch Size</th>
+                                            <th>Avg Batch Size</th>
+                                            <th>Run Time (hrs)</th>
+                                            <th>Failure Rate (%)</th>
+                                            <th>Setup Time (hrs)</th>
+                                            <th>Cleanup Time (hrs)</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div id="reports-tab" class="tab-content" style="display: none;">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Utilization Trends</h5>
+                            <button class="btn btn-success btn-sm" onclick="exportExcel()">Export Excel</button>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="trendChart" height="100"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Project Status</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped" id="projects-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Project</th>
+                                            <th>Status</th>
+                                            <th>Priority</th>
+                                            <th>Progress %</th>
+                                            <th>Due Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
+
